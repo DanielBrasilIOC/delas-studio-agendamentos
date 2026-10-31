@@ -14,9 +14,12 @@ Sistema web responsivo para solicitar e administrar agendamentos de serviços de
 ## Recursos previstos
 
 - Catálogo de serviços capilares e preços em reais.
-- Solicitação de agendamento com dados de contato, serviço, data, horário e observações.
+- Solicitação de agendamento com seleção de vários serviços, dados de contato, data, horário e observações.
+- Soma automática das durações dos serviços selecionados e cálculo de estimativa.
+- Adicional extra longo/volumoso aplicado sobre o serviço-base selecionado: R$ 30 para progressiva e R$ 50 para mechas. O adicional não pode ser agendado isoladamente.
 - Solicitações iniciadas como **Pendente de confirmação**.
-- Painel para consultar agendamentos, alterar status, registrar agendamentos manualmente, cadastrar bloqueios e ajustar serviços.
+- Painel com visão diária ou semanal, busca por cliente/WhatsApp/serviço/ID, detalhes do pedido, estimativa, alteração de status e agendamento manual com vários serviços.
+- Gestão de bloqueios (consulta e remoção), edição de descrições, preços/durações e ativação/desativação do catálogo e consulta dos últimos registros de auditoria.
 - Validação no servidor para impedir agendamentos em horários sobrepostos.
 - Registro de ações administrativas em uma aba de auditoria.
 
@@ -32,15 +35,16 @@ A implantação precisa ser feita e autorizada na conta Google que ficará respo
    - `Public`: copie o conteúdo de `backend/Public.html`.
    - `Index`: copie o conteúdo de `backend/Index.html`.
 4. No editor, execute a função `setup()`. Na primeira execução, revise as permissões solicitadas e autorize-as com a conta responsável. A configuração inicial cria a planilha e as abas necessárias e registra o identificador da planilha nas propriedades do projeto.
-5. Em **Configurações do projeto → Propriedades do script**, configure:
+5. Se estiver atualizando uma implantação anterior, execute `setup()` novamente após substituir o código. A função preserva os dados existentes e acrescenta as colunas de estimativa/detalhamento ao final da aba Agendamentos. Não apague a planilha já usada.
+6. Em **Configurações do projeto → Propriedades do script**, configure:
    - `ADMIN_TOKEN_1`: segredo longo e aleatório para a primeira pessoa autorizada.
    - `ADMIN_TOKEN_2`: segredo longo e aleatório, diferente do primeiro, para a segunda pessoa autorizada.
-6. Salve o projeto e escolha **Implantar → Nova implantação → App da Web**:
+7. Salve o projeto e escolha **Implantar → Nova implantação → App da Web**:
    - **Executar como:** sua conta.
    - **Quem pode acessar:** escolha a opção compatível com a política da conta e com o uso pretendido. Para um formulário público, o acesso precisa permitir que os clientes abram a página; confira as implicações de segurança antes de publicar.
-7. Conclua a implantação e copie a URL terminada em `/exec`. Essa será a URL pública do sistema.
-8. Abra a URL para conferir a página pública. Para abrir o painel administrativo, use a mesma URL acrescentando `?page=admin`.
-9. Faça os testes de cadastro, consulta de horários, conflito de horários, bloqueios, alteração de status e acesso dos dois administradores antes de divulgar o endereço aos clientes.
+8. Conclua a implantação e copie a URL terminada em `/exec`. Essa será a URL pública do sistema.
+9. Abra a URL para conferir a página pública. Para abrir o painel administrativo, use a mesma URL acrescentando `?page=admin`.
+10. Faça os testes de seleção múltipla, estimativa, adicionais, soma de duração, conflito de horários, bloqueios, edição do catálogo, auditoria, alteração de status e acesso dos dois administradores antes de divulgar o endereço aos clientes.
 
 ## Acesso administrativo e segurança
 
@@ -55,7 +59,7 @@ A implantação precisa ser feita e autorizada na conta Google que ficará respo
 - A aplicação funcional é servida pelo Google Apps Script depois da implantação; a URL `/exec` só existirá após essa etapa.
 - As durações iniciais dos serviços são provisórias e precisam ser confirmadas.
 - A segunda pessoa administradora precisa receber seu próprio token de acesso.
-- Antes da publicação definitiva, é necessário revisar e testar o cálculo dos preços adicionais, a seleção de mais de um serviço, a disponibilidade e a prevenção de conflitos, além dos fluxos administrativos.
+- A lógica de seleção de múltiplos serviços, estimativas, adicionais por comprimento, soma de duração, visão semanal e recursos administrativos foi implementada no repositório e passou por verificações de sintaxe e testes isolados. Ainda é obrigatória a implantação e a validação ponta a ponta na planilha real do salão; essas verificações não foram executadas na conta Google.
 
 ## Repositório
 
