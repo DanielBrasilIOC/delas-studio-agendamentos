@@ -23,6 +23,9 @@ function doGet(e){
 }
 function api(action,data,token){
  if(action==='catalog')return catalog_();
+  if(action==='adminCatalog'){auth_(token);return adminCatalog_();}
+  if(action==='blocks'){auth_(token);return blocks_();}
+  if(action==='audit'){auth_(token);return auditList_();}
  if(action==='slots')return slots_(data.date,data.service);
  auth_(token);
  if(action==='list')return list_(data||{});
@@ -36,7 +39,11 @@ function api(action,data,token){
 function publicBooking(data){return createBooking_(data,false);}
 function ss_(){const id=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');if(!id)throw new Error('Execute setup() primeiro.');return SpreadsheetApp.openById(id);}
 function auth_(token){const p=PropertiesService.getScriptProperties();if(!token||![p.getProperty('ADMIN_TOKEN_1'),p.getProperty('ADMIN_TOKEN_2')].includes(token))throw new Error('Acesso administrativo não autorizado.');}
-function catalog_(){const sh=ss_().getSheetByName(SHEETS.SERVICES);return sh.getDataRange().getValues().slice(1).filter(r=>r[4]===true).map(r=>({name:r[0],price:r[1],priceType:r[2],duration:r[3]}));}
+function catalog_(){return readServices_().filter(r=>r.active).map(({name,price,priceType,duration})=>({name,price,priceType,duration}));}
+function adminCatalog_(){return readServices_();}
+function readServices_(){const sh=ss_().getSheetByName(SHEETS.SERVICES);return sh.getDataRange().getValues().slice(1).filter(r=>r[0]).map(r=>({name:String(r[0]),price:Number(r[1])||0,priceType:String(r[2]||'Fixo'),duration:Number(r[3])||30,active:r[4]===true}));}
+function blocks_(){return ss_().getSheetByName(SHEETS.BLOCKS).getDataRange().getValues().slice(1).filter(r=>r[0]).map(r=>({date:dateKey_(r[0]),start:timeKey_(r[1]),end:timeKey_(r[2]),reason:r[3]||''})).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));}
+function auditList_(){return ss_().getSheetByName(SHEETS.AUDIT).getDataRange().getValues().slice(1).filter(r=>r[0]).slice(-200).reverse().map(r=>({at:r[0] instanceof Date?Utilities.formatDate(r[0],TZ,'dd/MM/yyyy HH:mm'):String(r[0]),who:r[1],action:r[2],id:r[3],detail:r[4]}));}
 function slots_(date,service){
  if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Data inválida.');
  const d=new Date(date+'T12:00:00');const day=d.getDay();if(day===0||day===1) return [];
@@ -69,7 +76,7 @@ function createBooking_(d,manual){
   return {ok:true,id,status};
  }finally{lock.releaseLock();}
 }
-function list_(filters){const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const all=sh.getDataRange().getValues();return all.slice(1).map(r=>({id:r[0],created:r[1] instanceof Date?Utilities.formatDate(r[1],TZ,'dd/MM/yyyy HH:mm'):r[1],name:r[2],phone:r[3],service:r[4],length:r[5],date:dateKey_(r[6]),start:timeKey_(r[7]),end:timeKey_(r[8]),notes:r[9],status:r[10]})).filter(r=>(!filters.date||r.date===filters.date)&&(!filters.status||r.status===filters.status)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));}
+function list_(filters){const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const all=sh.getDataRange().getValues();return all.slice(1).map(r=>({id:r[0],created:r[1] instanceof Date?Utilities.formatDate(r[1],TZ,'dd/MM/yyyy HH:mm'):r[1],name:r[2],phone:r[3],service:r[4],length:r[5],date:dateKey_(r[6]),start:timeKey_(r[7]),end:timeKey_(r[8]),notes:r[9],status:r[10]})).filter(r=>(!filters.date||r.date===filters.date)&&(!filters.status||r.status===filters.status)&&(!filters.q||[r.name,r.phone,r.service,r.id].join(' ').toLowerCase().includes(String(filters.q).toLowerCase()))).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));}
 function updateStatus_(d){const sh=ss_().getSheetByName(SHEETS.BOOKINGS),v=sh.getDataRange().getValues();const i=v.findIndex(r=>r[0]===d.id);if(i<1)throw new Error('Agendamento não encontrado.');const allowed=['Pendente de confirmação','Confirmado','Concluído','Cancelado','Não compareceu'];if(!allowed.includes(d.status))throw new Error('Status inválido.');sh.getRange(i+1,11).setValue(d.status);audit_('Admin','Alteração de status',d.id,d.status);return {ok:true};}
 function saveService_(d){const sh=ss_().getSheetByName(SHEETS.SERVICES),v=sh.getDataRange().getValues();const i=v.findIndex((r,n)=>n>0&&r[0]===d.name);if(i<1)throw new Error('Serviço não encontrado.');sh.getRange(i+1,2,1,4).setValues([[Number(d.price),d.priceType,Number(d.duration),d.active===true]]);audit_('Admin','Edição de serviço',d.name,'Preço/duração/ativo');return {ok:true};}
 function block_(d){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const date=String(d.date||''),start=String(d.start||''),end=String(d.end||'');const day=new Date(date+'T12:00:00').getDay();const today=Utilities.formatDate(new Date(),TZ,'yyyy-MM-dd');if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date<today||day===0||day===1||!/^([0-1]\d|2[0-3]):[0-5]\d$/.test(start)||!/^([0-1]\d|2[0-3]):[0-5]\d$/.test(end)||start>=end||start<'09:00'||end>'18:00')throw new Error('Informe uma data e um intervalo válido, dentro do expediente.');const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const busy=sh.getDataRange().getValues().slice(1).some(r=>dateKey_(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,end,timeKey_(r[7]),timeKey_(r[8])));if(busy)throw new Error('Já existe agendamento nesse intervalo.');const bs=ss_().getSheetByName(SHEETS.BLOCKS);const existing=bs.getDataRange().getValues().slice(1).some(r=>dateKey_(r[0])===date&&overlap_(start,end,timeKey_(r[1]),timeKey_(r[2])));if(existing)throw new Error('Este intervalo já está bloqueado.');bs.appendRow([date,start,end,String(d.reason||'').slice(0,200),'Admin']);audit_('Admin','Bloqueio de horário',date,start+'-'+end);return {ok:true};}finally{lock.releaseLock();}}
