@@ -45,8 +45,8 @@ function slots_(date,service){
  const blocks=ss_().getSheetByName(SHEETS.BLOCKS).getDataRange().getValues().slice(1);
  const out=[];for(let m=9*60;m<18*60;m+=30){let end=m+Number(svc.duration||30);if(end>18*60)continue;
   const start=strTime_(m),finish=strTime_(end);
-  const busy=rows.some(r=>String(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,finish,String(r[7]),String(r[8])));
-  const blocked=blocks.some(r=>String(r[0])===date&&overlap_(start,finish,String(r[1]),String(r[2])));
+  const busy=rows.some(r=>dateKey_(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,finish,timeKey_(r[7]),timeKey_(r[8])));
+  const blocked=blocks.some(r=>dateKey_(r[0])===date&&overlap_(start,finish,timeKey_(r[1]),timeKey_(r[2])));
   if(!busy&&!blocked)out.push(start);
  }return out;
 }
@@ -60,8 +60,8 @@ function createBooking_(d,manual){
   const mins=Number(start.slice(0,2))*60+Number(start.slice(3));const end=mins+Number(svc.duration||30);
   if(mins<540||end>1080)throw new Error('Horário fora do expediente.');
   const finish=strTime_(end);const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const rows=sh.getDataRange().getValues().slice(1);
-  const conflict=rows.some(r=>String(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,finish,String(r[7]),String(r[8])));
-  const blocked=ss_().getSheetByName(SHEETS.BLOCKS).getDataRange().getValues().slice(1).some(r=>String(r[0])===date&&overlap_(start,finish,String(r[1]),String(r[2])));
+  const conflict=rows.some(r=>dateKey_(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,finish,timeKey_(r[7]),timeKey_(r[8])));
+  const blocked=ss_().getSheetByName(SHEETS.BLOCKS).getDataRange().getValues().slice(1).some(r=>dateKey_(r[0])===date&&overlap_(start,finish,timeKey_(r[1]),timeKey_(r[2])));
   if(conflict||blocked)throw new Error('Este horário não está mais disponível. Escolha outro.');
   const id=Utilities.getUuid();const status=manual?'Confirmado':'Pendente de confirmação';
   sh.appendRow([id,new Date(),String(d.name).slice(0,100),String(d.phone).slice(0,25),d.service,d.length||'',date,start,finish,String(d.notes||'').slice(0,500),status,manual?'Admin':'Cliente']);
@@ -69,11 +69,11 @@ function createBooking_(d,manual){
   return {ok:true,id,status};
  }finally{lock.releaseLock();}
 }
-function list_(filters){const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const all=sh.getDataRange().getValues();return all.slice(1).map(r=>({id:r[0],created:r[1],name:r[2],phone:r[3],service:r[4],length:r[5],date:r[6],start:r[7],end:r[8],notes:r[9],status:r[10]})).filter(r=>(!filters.date||String(r.date)===filters.date)&&(!filters.status||r.status===filters.status)).sort((a,b)=>(String(a.date)+String(a.start)).localeCompare(String(b.date)+String(b.start)));}
+function list_(filters){const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const all=sh.getDataRange().getValues();return all.slice(1).map(r=>({id:r[0],created:r[1] instanceof Date?Utilities.formatDate(r[1],TZ,'dd/MM/yyyy HH:mm'):r[1],name:r[2],phone:r[3],service:r[4],length:r[5],date:dateKey_(r[6]),start:timeKey_(r[7]),end:timeKey_(r[8]),notes:r[9],status:r[10]})).filter(r=>(!filters.date||r.date===filters.date)&&(!filters.status||r.status===filters.status)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));}
 function updateStatus_(d){const sh=ss_().getSheetByName(SHEETS.BOOKINGS),v=sh.getDataRange().getValues();const i=v.findIndex(r=>r[0]===d.id);if(i<1)throw new Error('Agendamento não encontrado.');const allowed=['Pendente de confirmação','Confirmado','Concluído','Cancelado','Não compareceu'];if(!allowed.includes(d.status))throw new Error('Status inválido.');sh.getRange(i+1,11).setValue(d.status);audit_('Admin','Alteração de status',d.id,d.status);return {ok:true};}
 function saveService_(d){const sh=ss_().getSheetByName(SHEETS.SERVICES),v=sh.getDataRange().getValues();const i=v.findIndex((r,n)=>n>0&&r[0]===d.name);if(i<1)throw new Error('Serviço não encontrado.');sh.getRange(i+1,2,1,4).setValues([[Number(d.price),d.priceType,Number(d.duration),d.active===true]]);audit_('Admin','Edição de serviço',d.name,'Preço/duração/ativo');return {ok:true};}
-function block_(d){const lock=LockService.getScriptLock();lock.waitLock(20000);try{if(!d.date||!d.start||!d.end||d.start>=d.end)throw new Error('Informe um intervalo válido.');const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const busy=sh.getDataRange().getValues().slice(1).some(r=>String(r[6])===d.date&&!['Cancelado'].includes(r[10])&&overlap_(d.start,d.end,String(r[7]),String(r[8])));if(busy)throw new Error('Já existe agendamento nesse intervalo.');ss_().getSheetByName(SHEETS.BLOCKS).appendRow([d.date,d.start,d.end,d.reason||'', 'Admin']);audit_('Admin','Bloqueio de horário',d.date,d.start+'-'+d.end);return {ok:true};}finally{lock.releaseLock();}}
-function deleteBlock_(d){const sh=ss_().getSheetByName(SHEETS.BLOCKS),v=sh.getDataRange().getValues();const i=v.findIndex((r,n)=>n>0&&String(r[0])===d.date&&String(r[1])===d.start);if(i<1)throw new Error('Bloqueio não encontrado.');sh.deleteRow(i+1);audit_('Admin','Remoção de bloqueio',d.date,d.start);return {ok:true};}
+function block_(d){const lock=LockService.getScriptLock();lock.waitLock(20000);try{const date=String(d.date||''),start=String(d.start||''),end=String(d.end||'');const day=new Date(date+'T12:00:00').getDay();const today=Utilities.formatDate(new Date(),TZ,'yyyy-MM-dd');if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||date<today||day===0||day===1||!/^([0-1]\\d|2[0-3]):[0-5]\\d$/.test(start)||!/^([0-1]\\d|2[0-3]):[0-5]\\d$/.test(end)||start>=end||start<'09:00'||end>'18:00')throw new Error('Informe uma data e um intervalo válido, dentro do expediente.');const sh=ss_().getSheetByName(SHEETS.BOOKINGS);const busy=sh.getDataRange().getValues().slice(1).some(r=>dateKey_(r[6])===date&&!['Cancelado'].includes(r[10])&&overlap_(start,end,timeKey_(r[7]),timeKey_(r[8])));if(busy)throw new Error('Já existe agendamento nesse intervalo.');const bs=ss_().getSheetByName(SHEETS.BLOCKS);const existing=bs.getDataRange().getValues().slice(1).some(r=>dateKey_(r[0])===date&&overlap_(start,end,timeKey_(r[1]),timeKey_(r[2])));if(existing)throw new Error('Este intervalo já está bloqueado.');bs.appendRow([date,start,end,String(d.reason||'').slice(0,200),'Admin']);audit_('Admin','Bloqueio de horário',date,start+'-'+end);return {ok:true};}finally{lock.releaseLock();}}
+function deleteBlock_(d){const sh=ss_().getSheetByName(SHEETS.BLOCKS),v=sh.getDataRange().getValues();const i=v.findIndex((r,n)=>n>0&&dateKey_(r[0])===d.date&&timeKey_(r[1])===d.start);if(i<1)throw new Error('Bloqueio não encontrado.');sh.deleteRow(i+1);audit_('Admin','Remoção de bloqueio',d.date,d.start);return {ok:true};}
 function audit_(who,action,id,detail){ss_().getSheetByName(SHEETS.AUDIT).appendRow([new Date(),who,action,id,detail]);}
-function overlap_(a,b,c,d){return a<d&&c<b;}
+function dateKey_(v){if(v instanceof Date)return Utilities.formatDate(v,TZ,'yyyy-MM-dd');const s=String(v||'').trim();if(/^\\d{4}-\\d{2}-\\d{2}$/.test(s))return s;return s;}\nfunction timeKey_(v){if(v instanceof Date)return Utilities.formatDate(v,TZ,'HH:mm');const s=String(v||'').trim();const m=s.match(/^(\\d{1,2}):(\\d{2})/);return m?String(m[1]).padStart(2,'0')+':'+m[2]:s;}\nfunction overlap_(a,b,c,d){return a<d&&c<b;}
 function strTime_(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
