@@ -36,9 +36,10 @@ A implantação precisa ser feita e autorizada na conta Google que ficará respo
    - `Index`: copie o conteúdo de `backend/Index.html`.
 4. No editor, execute a função `setup()`. Na primeira execução, revise as permissões solicitadas e autorize-as com a conta responsável. A configuração inicial cria a planilha e as abas necessárias e registra o identificador da planilha nas propriedades do projeto.
 5. Se estiver atualizando uma implantação anterior, execute `setup()` novamente após substituir o código. A função preserva os dados existentes e acrescenta as colunas de estimativa/detalhamento ao final da aba Agendamentos. Não apague a planilha já usada.
-6. Em **Configurações do projeto → Propriedades do script**, configure:
-   - `ADMIN_TOKEN_1`: segredo longo e aleatório para a primeira pessoa autorizada.
-   - `ADMIN_TOKEN_2`: segredo longo e aleatório, diferente do primeiro, para a segunda pessoa autorizada.
+6. Em **Configurações do projeto → Propriedades do script**, configure dois segredos longos, aleatórios e diferentes:
+   - `ADMIN_TOKEN_1`: token individual de `brasil.moura@gmail.com`.
+   - `ADMIN_TOKEN_2`: token individual de `sobrancelhasecia.camila@gmail.com`.
+   Os e-mails autorizados estão em uma lista fixa no servidor. No painel, cada pessoa informa seu e-mail autorizado e o próprio token. O servidor valida o par e rejeita outros e-mails. Gere os tokens fora do repositório e nunca os inclua no código, no GitHub ou em mensagens públicas.
 7. Salve o projeto e escolha **Implantar → Nova implantação → App da Web**:
    - **Executar como:** sua conta.
    - **Quem pode acessar:** escolha a opção compatível com a política da conta e com o uso pretendido. Para um formulário público, o acesso precisa permitir que os clientes abram a página; confira as implicações de segurança antes de publicar.
@@ -48,9 +49,9 @@ A implantação precisa ser feita e autorizada na conta Google que ficará respo
 
 ## Acesso administrativo e segurança
 
-- O painel usa dois tokens independentes definidos nas Propriedades do Script. Cada pessoa autorizada deve receber somente o seu próprio token.
+- O servidor aceita somente os dois e-mails autorizados definidos em `ADMIN_EMAILS` e exige o token correspondente (`ADMIN_TOKEN_1` ou `ADMIN_TOKEN_2`).
+- O par e-mail + token é uma credencial de acesso do aplicativo; não equivale a uma sessão Google verificada. Quem obtiver o token individual poderá se passar pelo respectivo administrador. Compartilhe cada token somente com sua titular e revogue/substitua-o se houver suspeita de exposição.
 - **Não** publique tokens, senhas, identificadores privados, dados de clientes ou cópias da planilha neste repositório.
-- Os tokens são credenciais compartilhadas, não uma autenticação individual vinculada ao e-mail Google. Quem tiver um token poderá usar o acesso correspondente; portanto, armazene e compartilhe os tokens com cuidado.
 - Não habilite o recebimento de clientes antes de concluir os testes e confirmar as configurações de acesso, privacidade e operação.
 
 ## Limitações e próximos passos
@@ -58,8 +59,8 @@ A implantação precisa ser feita e autorizada na conta Google que ficará respo
 - A página estática `index.html` no GitHub Pages não está conectada ao backend e não deve ser usada para receber agendamentos.
 - A aplicação funcional é servida pelo Google Apps Script depois da implantação; a URL `/exec` só existirá após essa etapa.
 - As durações iniciais dos serviços são provisórias e precisam ser confirmadas.
-- A segunda pessoa administradora precisa receber seu próprio token de acesso.
-- A lógica de seleção de múltiplos serviços, estimativas, adicionais por comprimento, soma de duração, visão semanal e recursos administrativos foi implementada no repositório e passou por verificações de sintaxe e testes isolados. Ainda é obrigatória a implantação e a validação ponta a ponta na planilha real do salão; essas verificações não foram executadas na conta Google.
+- Os dois tokens individuais precisam ser criados e cadastrados nas Propriedades do Script antes do primeiro acesso administrativo.
+- A lógica de seleção de múltiplos serviços, estimativas, adicionais por comprimento, soma de duração, visão semanal e recursos administrativos foi implementada no repositório e passou por verificações de sintaxe e testes isolados. A validação de sintaxe e os testes isolados não substituem a implantação nem a validação ponta a ponta na planilha real do salão. A implantação ainda não foi executada nesta conta Google.
 
 ## Repositório
 
