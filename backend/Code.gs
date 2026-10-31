@@ -29,10 +29,10 @@ function doGet(e){
 function api(action,data,token,email){
  if(action==='catalog')return catalog_();
   if(action==='adminCatalog'){auth_(email,token);return adminCatalog_();}
-  if(action==='blocks'){auth_(token);return blocks_();}
-  if(action==='audit'){auth_(token);return auditList_();}
+  if(action==='blocks'){auth_(email,token);return blocks_();}
+  if(action==='audit'){auth_(email,token);return auditList_();}
  if(action==='slots')return slots_(data.date,data.services||data.service,data.extraLong===true);
- auth_(token);
+ auth_(email,token);
  if(action==='list')return list_(data||{});
  if(action==='updateStatus')return updateStatus_(data);
  if(action==='createManual')return createBooking_(data,true);
