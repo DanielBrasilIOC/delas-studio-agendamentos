@@ -1,28 +1,62 @@
 # D'ELAS — Studio de Beleza
 
-Site responsivo e sistema de solicitação de agendamentos para serviços de cabelo.
+Sistema web responsivo para solicitar e administrar agendamentos de serviços de cabelo do **D'ELAS — Studio de Beleza**.
 
-## Estrutura
-- `index.html`: vitrine pública estática (GitHub Pages).
-- `backend/Code.gs`: backend Google Apps Script (fonte).
-- `backend/Index.html`: interface completa hospedada pelo Apps Script (mesma origem, evitando problemas de CORS).
+> **Status:** projeto em desenvolvimento. Ainda não está publicado, não foi validado de ponta a ponta e não deve receber clientes até concluir a implantação e os testes na conta Google responsável pelo salão.
 
-## Publicação
-1. Ative GitHub Pages em **Settings → Pages → Deploy from a branch → main → /(root)**.
-2. Crie uma planilha Google privada para os agendamentos.
-3. Abra [script.google.com](https://script.google.com), crie um projeto e copie `backend/Code.gs` e `backend/Index.html` para os arquivos correspondentes.
-4. No editor Apps Script, execute `setup()` e autorize as permissões. A função cria as abas e as configurações iniciais.
-5. Em **Configurações do projeto → Propriedades do script**, defina:
-   - `SPREADSHEET_ID`: ID da planilha criada (a função setup também o registra se criar a planilha).
-   - `ADMIN_TOKEN_1`: token longo e aleatório, privado, para a primeira pessoa administradora.
-   - `ADMIN_TOKEN_2`: token longo e aleatório, privado, para a segunda pessoa administradora.
-6. Publique em **Implantar → Nova implantação → App da Web**. Executar como: sua conta. Acesso: qualquer pessoa. Copie a URL terminada em `/exec`.
-7. Acesse a URL do Web App. O painel administrativo usa um dos dois tokens privados. Não coloque tokens na página pública ou neste repositório.
+## Arquivos do projeto
 
-## Importante
-- O repositório é público: nunca coloque planilha, dados de clientes, tokens, senhas ou URLs privadas aqui.
-- O formulário da página GitHub Pages é apenas uma vitrine estática. O fluxo operacional e a agenda funcionam na URL do Web App Apps Script após a configuração.
-- Os horários iniciais são blocos de 30 minutos; durações e intervalos devem ser ajustados no painel conforme a operação real.
-- Pedidos começam como **Pendente de confirmação**. A agenda valida sobreposição no servidor usando bloqueio de concorrência.
-- Acesso administrativo protegido por dois tokens independentes configurados nas Propriedades do Script. Guarde-os em local seguro e compartilhe apenas com as duas pessoas autorizadas.
-- Para contas Google pessoais, a disponibilidade do e-mail de sessão pode variar; por isso a primeira versão usa tokens de acesso administrativos, não autenticação por e-mail.
+- `backend/Code.gs`: lógica do servidor, criação/uso das planilhas, catálogo, horários, agendamentos, bloqueios, autenticação administrativa e auditoria.
+- `backend/Public.html`: página pública com catálogo e formulário de solicitação de agendamento.
+- `backend/Index.html`: painel administrativo.
+- `index.html`: página estática informativa; não é o sistema operacional de agendamento.
+
+## Recursos previstos
+
+- Catálogo de serviços capilares e preços em reais.
+- Solicitação de agendamento com dados de contato, serviço, data, horário e observações.
+- Solicitações iniciadas como **Pendente de confirmação**.
+- Painel para consultar agendamentos, alterar status, registrar agendamentos manualmente, cadastrar bloqueios e ajustar serviços.
+- Validação no servidor para impedir agendamentos em horários sobrepostos.
+- Registro de ações administrativas em uma aba de auditoria.
+
+Os preços indicados como “a partir de” são estimativas iniciais e podem mudar após avaliação no salão. As durações cadastradas inicialmente são parâmetros provisórios e precisam ser confirmadas pela administração antes da abertura ao público.
+
+## Implantação na conta Google do salão
+
+A implantação precisa ser feita e autorizada na conta Google que ficará responsável pelo sistema. O repositório não contém acesso a essa conta, à planilha privada nem às credenciais administrativas.
+
+1. Entre em [Google Apps Script](https://script.google.com/) com a conta Google responsável pelo salão e crie um novo projeto.
+2. No projeto, substitua o conteúdo do arquivo `Code.gs` pelo conteúdo de `backend/Code.gs`.
+3. Crie dois arquivos HTML no Apps Script:
+   - `Public`: copie o conteúdo de `backend/Public.html`.
+   - `Index`: copie o conteúdo de `backend/Index.html`.
+4. No editor, execute a função `setup()`. Na primeira execução, revise as permissões solicitadas e autorize-as com a conta responsável. A configuração inicial cria a planilha e as abas necessárias e registra o identificador da planilha nas propriedades do projeto.
+5. Em **Configurações do projeto → Propriedades do script**, configure:
+   - `ADMIN_TOKEN_1`: segredo longo e aleatório para a primeira pessoa autorizada.
+   - `ADMIN_TOKEN_2`: segredo longo e aleatório, diferente do primeiro, para a segunda pessoa autorizada.
+6. Salve o projeto e escolha **Implantar → Nova implantação → App da Web**:
+   - **Executar como:** sua conta.
+   - **Quem pode acessar:** escolha a opção compatível com a política da conta e com o uso pretendido. Para um formulário público, o acesso precisa permitir que os clientes abram a página; confira as implicações de segurança antes de publicar.
+7. Conclua a implantação e copie a URL terminada em `/exec`. Essa será a URL pública do sistema.
+8. Abra a URL para conferir a página pública. Para abrir o painel administrativo, use a mesma URL acrescentando `?page=admin`.
+9. Faça os testes de cadastro, consulta de horários, conflito de horários, bloqueios, alteração de status e acesso dos dois administradores antes de divulgar o endereço aos clientes.
+
+## Acesso administrativo e segurança
+
+- O painel usa dois tokens independentes definidos nas Propriedades do Script. Cada pessoa autorizada deve receber somente o seu próprio token.
+- **Não** publique tokens, senhas, identificadores privados, dados de clientes ou cópias da planilha neste repositório.
+- Os tokens são credenciais compartilhadas, não uma autenticação individual vinculada ao e-mail Google. Quem tiver um token poderá usar o acesso correspondente; portanto, armazene e compartilhe os tokens com cuidado.
+- Não habilite o recebimento de clientes antes de concluir os testes e confirmar as configurações de acesso, privacidade e operação.
+
+## Limitações e próximos passos
+
+- A página estática `index.html` no GitHub Pages não está conectada ao backend e não deve ser usada para receber agendamentos.
+- A aplicação funcional é servida pelo Google Apps Script depois da implantação; a URL `/exec` só existirá após essa etapa.
+- As durações iniciais dos serviços são provisórias e precisam ser confirmadas.
+- A segunda pessoa administradora precisa receber seu próprio token de acesso.
+- Antes da publicação definitiva, é necessário revisar e testar o cálculo dos preços adicionais, a seleção de mais de um serviço, a disponibilidade e a prevenção de conflitos, além dos fluxos administrativos.
+
+## Repositório
+
+[DanielBrasilIOC/delas-studio-agendamentos](https://github.com/DanielBrasilIOC/delas-studio-agendamentos)
