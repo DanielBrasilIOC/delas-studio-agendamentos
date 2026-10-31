@@ -19,7 +19,7 @@ function seedServices_(ss){
 function doGet(e){
  const page=e&&e.parameter&&e.parameter.page;
  if(page==='admin')return HtmlService.createTemplateFromFile('Index').evaluate().setTitle("D'ELAS | Gestão").addMetaTag('viewport','width=device-width, initial-scale=1');
- return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><h2>D\'ELAS Studio de Beleza</h2><p>Aplicação de agendamento ativa. <a href="?page=admin">Acessar gestão</a></p>');
+ return HtmlService.createTemplateFromFile('Public').evaluate().setTitle("D'ELAS | Agendamento").addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 function api(action,data,token){
  if(action==='catalog')return catalog_();
@@ -53,7 +53,7 @@ function slots_(date,service){
 function createBooking_(d,manual){
  const lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
-  const date=String(d.date||'');const day=new Date(date+'T12:00:00').getDay();
+  const date=String(d.date||'');const day=new Date(date+'T12:00:00').getDay();const today=Utilities.formatDate(new Date(),TZ,'yyyy-MM-dd');if(date<today)throw new Error('Não é possível agendar em uma data passada.');
   if(!d.name||!d.phone||!d.service||!/^\d{4}-\d{2}-\d{2}$/.test(date)||day===0||day===1)throw new Error('Confira os dados e escolha uma data de terça a sábado.');
   const svc=catalog_().find(s=>s.name===d.service);if(!svc)throw new Error('Serviço indisponível.');
   const start=String(d.time||'');if(!/^([0-1]\d|2[0-3]):[0-5]\d$/.test(start))throw new Error('Horário inválido.');
