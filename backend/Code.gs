@@ -1,10 +1,49 @@
 const TZ='America/Sao_Paulo';
-const ADMINS=['brasil.moura@gmail.com','sobrancelhasecia.camila@gmail.com'];
 const TAB='Agenda';
+const USERS={camila:'Camila',elaine:'Elaine',iramar:'Iramar'};
+
+/* Execute uma única vez após cadastrar INITIAL_PASSWORD_CAMILA,
+   INITIAL_PASSWORD_ELAINE e INITIAL_PASSWORD_IRAMAR nas propriedades do script.
+   As senhas iniciais são convertidas em hashes com salt e apagadas das propriedades. */
+function initializeAccess(){
+  const p=PropertiesService.getScriptProperties();
+  Object.keys(USERS).forEach(k=>{
+    const prop='INITIAL_PASSWORD_'+k.toUpperCase();
+    const password=p.getProperty(prop);
+    if(!password||password.length<12)throw Error('Cadastre uma senha inicial de pelo menos 12 caracteres para '+USERS[k]+'.');
+    const salt=Utilities.getUuid()+Utilities.getUuid();
+    p.setProperty('LOGIN_SALT_'+k,salt);
+    p.setProperty('LOGIN_HASH_'+k,hash_(salt+password));
+    p.deleteProperty(prop);
+  });
+  return 'Senhas iniciais configuradas. Compartilhe cada senha somente com sua respectiva usuária.';
+}
 function setup(){const p=PropertiesService.getScriptProperties();let id=p.getProperty('SPREADSHEET_ID'),ss;try{ss=id?SpreadsheetApp.openById(id):null}catch(e){}if(!ss){ss=SpreadsheetApp.create("D'ELAS — Agenda");p.setProperty('SPREADSHEET_ID',ss.getId())}let sh=ss.getSheetByName(TAB)||ss.insertSheet(TAB);if(!sh.getLastRow())sh.appendRow(['ID','Criado em','Cliente','WhatsApp','Serviço','Data','Início','Fim','Observações','Status','Responsável']);sh.setFrozenRows(1);return ss.getUrl()}
 function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle("D'ELAS | Agenda").addMetaTag('viewport','width=device-width, initial-scale=1')}
-function login(email,token){let e=String(email||'').trim().toLowerCase(),i=ADMINS.indexOf(e),v=PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN_'+(i+1));if(i<0||!v||String(token)!==v)throw Error('E-mail ou token incorreto.');return {email:e}}
-function api(action,d,email,token){login(email,token);if(action==='list')return list_(d||{});if(action==='create')return create_(d||{},String(email).toLowerCase());if(action==='edit')return edit_(d||{},String(email).toLowerCase());if(action==='status')return status_(d||{},String(email).toLowerCase());throw Error('Ação inválida.')}
+function hash_(s){return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,s,Utilities.Charset.UTF_8))}
+function login(username,password){
+  const u=String(username||'').trim().toLowerCase();
+  if(!Object.prototype.hasOwnProperty.call(USERS,u))throw Error('Usuário ou senha incorretos.');
+  const p=PropertiesService.getScriptProperties(),salt=p.getProperty('LOGIN_SALT_'+u),stored=p.getProperty('LOGIN_HASH_'+u);
+  if(!salt||!stored||hash_(salt+String(password||''))!==stored)throw Error('Usuário ou senha incorretos.');
+  const token=Utilities.getUuid()+Utilities.getUuid();
+  CacheService.getScriptCache().put('session_'+hash_(token),USERS[u],21600);
+  return {user:USERS[u],session:token};
+}
+function userFor_(session){
+  const token=String(session||'');
+  const user=token?CacheService.getScriptCache().get('session_'+hash_(token)):null;
+  if(!user)throw Error('Sessão expirada. Entre novamente.');
+  return user;
+}
+function api(action,d,session){
+  const user=userFor_(session);
+  if(action==='list')return list_(d||{});
+  if(action==='create')return create_(d||{},user);
+  if(action==='edit')return edit_(d||{},user);
+  if(action==='status')return status_(d||{},user);
+  throw Error('Ação inválida.');
+}
 function sheet_(){let id=PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');if(!id)throw Error('Execute setup() primeiro.');let s=SpreadsheetApp.openById(id).getSheetByName(TAB);if(!s)throw Error('Aba Agenda não encontrada.');return s}
 function list_(f){return sheet_().getDataRange().getValues().slice(1).filter(r=>r[0]).map(r=>({id:String(r[0]),client:String(r[2]||''),phone:String(r[3]||''),service:String(r[4]||''),date:date_(r[5]),start:time_(r[6]),end:time_(r[7]),notes:String(r[8]||''),status:String(r[9]||''),owner:String(r[10]||'')})).filter(x=>(!f.date||x.date===f.date)&&(!f.q||[x.client,x.phone,x.service].join(' ').toLowerCase().includes(String(f.q).toLowerCase()))).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start))}
 function create_(d,user){let lock=LockService.getScriptLock();lock.waitLock(20000);try{let date=String(d.date||''),start=String(d.start||''),end=String(d.end||''),client=String(d.client||'').trim(),phone=String(d.phone||'').trim(),service=String(d.service||'').trim();if(!client||!phone||!service||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end))throw Error('Preencha cliente, WhatsApp, serviço, data e horários.');let parsed=new Date(date+'T12:00:00');if(isNaN(parsed.getTime())||Utilities.formatDate(parsed,TZ,'yyyy-MM-dd')!==date)throw Error('Data inválida.');let today=Utilities.formatDate(new Date(),TZ,'yyyy-MM-dd');if(date<today)throw Error('Não é possível agendar em uma data passada.');let day=parsed.getDay(),a=min_(start),b=min_(end);if(day===0||day===1)throw Error('Atendimentos de terça a sábado.');if(a<540||b>1080||b<=a)throw Error('Horário permitido: 09h às 18h. O término deve ser após o início.');let sh=sheet_(),rows=sh.getDataRange().getValues().slice(1),conflict=rows.some(r=>r[0]&&date_(r[5])===date&&String(r[9])!=='Cancelado'&&a<min_(time_(r[7]))&&b>min_(time_(r[6])));if(conflict)throw Error('Este horário já está ocupado. Atualize a agenda.');sh.appendRow([Utilities.getUuid(),new Date(),client,phone,service,dateObj_(date),start,end,String(d.notes||''),'Pendente de confirmação',user]);return {ok:true}}finally{lock.releaseLock()}}
