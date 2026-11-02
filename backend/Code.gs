@@ -13,19 +13,19 @@ function initializeAccess(){
     if(!password||password.length<12)throw Error('Cadastre uma senha inicial de pelo menos 12 caracteres para '+USERS[k]+'.');
     const salt=Utilities.getUuid()+Utilities.getUuid();
     p.setProperty('LOGIN_SALT_'+k,salt);
-    p.setProperty('LOGIN_HASH_'+k,hash_(salt+password));
+    p.setProperty('LOGIN_HASH_'+k,passwordHash_(password,salt));
     p.deleteProperty(prop);
   });
   return 'Senhas iniciais configuradas. Compartilhe cada senha somente com sua respectiva usuária.';
 }
 function setup(){const p=PropertiesService.getScriptProperties();let id=p.getProperty('SPREADSHEET_ID'),ss;try{ss=id?SpreadsheetApp.openById(id):null}catch(e){}if(!ss){ss=SpreadsheetApp.create("D'ELAS — Agenda");p.setProperty('SPREADSHEET_ID',ss.getId())}let sh=ss.getSheetByName(TAB)||ss.insertSheet(TAB);if(!sh.getLastRow())sh.appendRow(['ID','Criado em','Cliente','WhatsApp','Serviço','Data','Início','Fim','Observações','Status','Responsável']);sh.setFrozenRows(1);return ss.getUrl()}
 function doGet(){return HtmlService.createHtmlOutputFromFile('Index').setTitle("D'ELAS | Agenda").addMetaTag('viewport','width=device-width, initial-scale=1')}
-function hash_(s){return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,s,Utilities.Charset.UTF_8))}
+function hash_(s){return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,s,Utilities.Charset.UTF_8))}\nfunction passwordHash_(password,salt){\n  const key=Utilities.newBlob(String(password)).getBytes();\n  const block=Utilities.newBlob(String(salt)).getBytes().concat([0,0,0,1]);\n  let u=Utilities.computeHmacSha256Signature(block,key),out=u.slice();\n  for(let i=1;i<12000;i++){u=Utilities.computeHmacSha256Signature(u,key);for(let j=0;j<out.length;j++)out[j]=out[j]^u[j]}\n  return Utilities.base64Encode(out);\n}\nfunction equalHash_(a,b){if(!a||!b||a.length!==b.length)return false;let x=0;for(let i=0;i<a.length;i++)x|=a.charCodeAt(i)^b.charCodeAt(i);return x===0}
 function login(username,password){
   const u=String(username||'').trim().toLowerCase();
   if(!Object.prototype.hasOwnProperty.call(USERS,u))throw Error('Usuário ou senha incorretos.');
   const p=PropertiesService.getScriptProperties(),salt=p.getProperty('LOGIN_SALT_'+u),stored=p.getProperty('LOGIN_HASH_'+u);
-  if(!salt||!stored||hash_(salt+String(password||''))!==stored)throw Error('Usuário ou senha incorretos.');
+  if(!salt||!stored||!equalHash_(passwordHash_(String(password||''),salt),stored))throw Error('Usuário ou senha incorretos.');
   const token=Utilities.getUuid()+Utilities.getUuid();
   CacheService.getScriptCache().put('session_'+hash_(token),USERS[u],21600);
   return {user:USERS[u],session:token};
