@@ -5,7 +5,7 @@
 </style></head><body>
 <header><div class="brand">D'ELAS<small>STUDIO DE BELEZA</small></div><span>AGENDA INTERNA · ACESSO RESTRITO</span></header>
 <main>
-<section class="card login" id="login"><h1>Agenda do salão</h1><p class="muted">Entre com seu e-mail autorizado e seu token individual.</p><div class="grid"><label>E-mail<input id="email" type="email" autocomplete="username" placeholder="Seu e-mail autorizado"></label><label>Token de acesso<input id="token" type="password" autocomplete="current-password"></label><div><button class="btn" id="enter">Acessar agenda</button><p id="loginMsg" class="msg"></p></div></div></section>
+<section class="card login" id="login"><h1>Agenda do salão</h1><p class="muted">Entre com seu usuário e sua senha individual.</p><div class="grid"><label>Usuário<input id="username" type="text" autocomplete="username" placeholder="Camila, Elaine ou Iramar"></label><label>Senha<input id="password" type="password" autocomplete="current-password"></label><div><button class="btn" id="enter">Acessar agenda</button><p id="loginMsg" class="msg"></p></div></div></section>
 <div id="app" hidden>
 <section class="card"><div class="toolbar"><div><h1 id="formTitle">Novo agendamento</h1><p class="muted">Preencha os dados da cliente. Os horários são compartilhados pelas duas administradoras.</p></div><button class="btn secondary" id="cancelEdit" hidden>Cancelar edição</button></div>
 <form id="form" class="grid"><input id="id" type="hidden">
@@ -18,12 +18,12 @@
 <div class="scroll"><table><thead><tr><th>Data</th><th>Horário</th><th>Cliente</th><th>WhatsApp</th><th>Serviço</th><th>Situação</th><th>Administradora</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div><p class="muted">Agendamentos cancelados não bloqueiam o horário. A agenda atualiza quando uma administradora salva uma alteração.</p></section>
 </div><footer>D'ELAS STUDIO DE BELEZA · Terça a sábado · 09h às 18h</footer></main>
 <script>
-let email='',token='',items=[];const $=id=>document.getElementById(id);
+let username='',session='',items=[];const $=id=>document.getElementById(id);
 function today(){let d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function callLogin(){return new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(e=>no(Error(e.message||e))).login(email,token))}
-function api(action,data={}){return new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(e=>no(Error(e.message||e))).api(action,data,email,token))}
-$('enter').onclick=async()=>{email=$('email').value.trim().toLowerCase();token=$('token').value;$('enter').disabled=true;try{await callLogin();$('login').hidden=true;$('app').hidden=false;$('date').min=today();$('filterDate').value=today();await load()}catch(e){$('loginMsg').textContent=e.message;token=''}finally{$('enter').disabled=false}};
+function callLogin(){return new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(e=>no(Error(e.message||e))).login(username,$('password').value))}
+function api(action,data={}){return new Promise((ok,no)=>google.script.run.withSuccessHandler(ok).withFailureHandler(e=>no(Error(e.message||e))).api(action,data,session))}
+$('enter').onclick=async()=>{username=$('username').value.trim().toLowerCase();$('enter').disabled=true;try{const auth=await callLogin();session=auth.session;$('login').hidden=true;$('app').hidden=false;$('date').min=today();$('filterDate').value=today();await load()}catch(e){$('loginMsg').textContent=e.message;$('password').value=''}finally{$('enter').disabled=false}};
 $('form').onsubmit=async e=>{e.preventDefault();$('save').disabled=true;let data={id:$('id').value,client:$('client').value,phone:$('phone').value,service:$('service').value,date:$('date').value,start:$('start').value,end:$('end').value,notes:$('notes').value};try{await api(data.id?'edit':'create',data);resetForm();$('msg').textContent='Agendamento salvo com sucesso.';await load()}catch(x){$('msg').textContent=x.message}finally{$('save').disabled=false}};
 function resetForm(){$('form').reset();$('id').value='';$('date').min=today();$('formTitle').textContent='Novo agendamento';$('save').textContent='Salvar agendamento';$('cancelEdit').hidden=true}
 $('cancelEdit').onclick=resetForm;$('refresh').onclick=load;$('filterDate').onchange=load;$('q').oninput=()=>{clearTimeout(window.searchTimer);window.searchTimer=setTimeout(load,300)};
