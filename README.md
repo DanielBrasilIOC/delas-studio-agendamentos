@@ -4,7 +4,7 @@ Agenda interna de testes para Camila, Elaine e Iramar registrarem e consultarem 
 
 ## Recursos
 - Acesso individual por usuário e senha.
-- Senhas armazenadas no servidor somente como hash SHA-256 com salt individual; não são incluídas no código público.
+- Senhas armazenadas no servidor somente como hash PBKDF2-HMAC-SHA256 com salt individual e 12.000 iterações; não são incluídas no código público.
 - Sessões temporárias no servidor (até 6 horas).
 - Registro de quem criou ou alterou cada agendamento.
 - Cadastro e consulta de clientes, WhatsApp, serviço, data, horários e observações.
