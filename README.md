@@ -1,31 +1,37 @@
 # D'ELAS — Agenda compartilhada
 
-Agenda interna simples para as duas responsáveis do D'ELAS Studio de Beleza cadastrarem e consultarem os atendimentos de cabelo em uma única agenda.
+Agenda interna de testes para Camila, Elaine e Iramar registrarem e consultarem os atendimentos em uma única agenda.
 
-## Funções
-- Cadastro de cliente, WhatsApp, serviço, data, horário de início e término e observações.
-- Agenda compartilhada entre os dois acessos autorizados.
-- Verificação no servidor para impedir horários sobrepostos, mesmo em cadastros simultâneos.
-- Todo atendimento novo começa como **Pendente de confirmação**.
-- As responsáveis podem alterar a situação para Confirmado, Concluído ou Cancelado.
-- Horário de funcionamento validado: terça a sábado, das 09h às 18h.
+## Recursos
+- Acesso individual por usuário e senha.
+- Senhas armazenadas no servidor somente como hash SHA-256 com salt individual; não são incluídas no código público.
+- Sessões temporárias no servidor (até 6 horas).
+- Registro de quem criou ou alterou cada agendamento.
+- Cadastro e consulta de clientes, WhatsApp, serviço, data, horários e observações.
+- Bloqueio de horários sobrepostos no servidor.
+- Situação inicial: Pendente de confirmação; opções Confirmado, Concluído e Cancelado.
+- Horário permitido: terça a sábado, das 09h às 18h.
 
-Não há cadastro público de clientes, catálogo complexo, pagamentos, relatórios ou painel extra.
+## Usuárias
+- `camila`
+- `elaine`
+- `iramar`
 
-## Usuárias autorizadas
-- brasil.moura@gmail.com — propriedade de script `ADMIN_TOKEN_1`
-- sobrancelhasecia.camila@gmail.com — propriedade de script `ADMIN_TOKEN_2`
+## Configuração do servidor (Google Apps Script)
+A autenticação real roda no Google Apps Script, não no GitHub Pages. A página pública do GitHub é apenas a interface estática e não deve ser usada como prova de autenticação ativa.
 
-Cada responsável deve ter seu próprio token, longo e aleatório. Cadastre os tokens em Configurações do projeto → Propriedades do script. Não os publique no GitHub nem compartilhe um token entre as duas pessoas.
-
-## Implantação necessária
-1. Entre em https://script.google.com/ na conta Google que será responsável pela agenda e crie um projeto.
-2. Copie `backend/Code.gs` para o arquivo `Code.gs` do Apps Script.
+1. Entre em https://script.google.com/ com a conta Google que administrará a agenda e crie um projeto.
+2. Copie `backend/Code.gs` para o arquivo `Code.gs`.
 3. Crie um arquivo HTML chamado `Index` e copie `backend/Index.html`.
-4. Execute `setup()` e autorize a criação/uso da planilha. Será criada a aba `Agenda`.
-5. Cadastre `ADMIN_TOKEN_1` e `ADMIN_TOKEN_2` nas Propriedades do script.
-6. Vá em Implantar → Nova implantação → App da Web. Escolha executar como a conta responsável e defina o acesso conforme as regras da conta Google e a política de privacidade do salão.
-7. Abra a URL `/exec` gerada e teste os dois acessos, a criação, a consulta e o bloqueio de conflitos antes de usar com os atendimentos reais.
+4. Em **Configurações do projeto → Propriedades do script**, cadastre temporariamente estas três propriedades, cada uma com uma senha forte e diferente (mínimo 12 caracteres):
+   - `INITIAL_PASSWORD_CAMILA`
+   - `INITIAL_PASSWORD_ELAINE`
+   - `INITIAL_PASSWORD_IRAMAR`
+   Não coloque as senhas no GitHub, em documentos compartilhados ou em mensagens.
+5. No editor, execute `setup()` uma vez e autorize a planilha.
+6. Execute `initializeAccess()` uma vez. O servidor transforma as senhas em hashes com salt e apaga as três propriedades de senha inicial. Não execute novamente após a configuração.
+7. Em **Implantar → Nova implantação → App da Web**, escolha executar como a conta responsável e configure o acesso de acordo com a política da conta Google e do salão.
+8. Abra a URL `/exec` gerada. Essa é a URL da agenda com autenticação funcional. Teste cada usuário e os agendamentos antes de usar com clientes reais.
 
-## Situação atual
-O código simplificado está no repositório, mas ainda **não foi copiado para o projeto Apps Script nem implantado**. A URL do GitHub Pages não é a agenda e não registra atendimentos. A implantação e os testes reais ainda precisam ser feitos na conta Google responsável.
+## Estado da publicação
+O código de autenticação individual foi preparado no repositório. Ele ainda precisa ser copiado e implantado no projeto Google Apps Script da conta responsável. A tela do GitHub Pages ainda não valida credenciais e não deve ser tratada como sistema de login ativo. A implantação do Apps Script e a configuração inicial das senhas exigem acesso à conta Google responsável.
